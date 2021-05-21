@@ -1,4 +1,6 @@
 const fetch = require('node-fetch');
+const jsdom = require("jsdom");
+const { JSDOM } = jsdom;
 
 
 const getParseImages = async ({category, order='', pagesCount=1}) => {
@@ -17,12 +19,15 @@ const parseImagesBlock = (block) => {
 
 
 const test = async (params) => {
-  // document.querySelector
   const category = params?.category || 'Christmas';
   const order = params?.order || '';
   const page = params?.page || 1;
-  // const block = result.querySelector
-  return await getPage({category, order, page})
+  const dom = new JSDOM(await getPage({category, order, page}));
+  const block = dom.window.document.querySelectorAll('.search-thumb');
+  block.forEach((el, index) => {
+    console.log(`~| ${index} el: `, el.querySelector('img').src);
+  })
+  return '{}';
 }
 
 const getPage = async ({category, order, page}) => {
