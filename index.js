@@ -11,48 +11,40 @@ const server = http.createServer(async (req, res) => {
     switch (url) {
         case '/4freephotos/save-images':
         {
-            const data = await parser.test(params);
+            const data = await parser.start(params);
             res
             .writeHead(200, {
                 'Content-Type': 'application/json'
             })
-            .end(data);
+            .end(await JSON.stringify(data));
             break;
         }
         default:
         {
-            let filePath = path.join(__dirname, "public", url === "/" ? "index.html" : url);
+            let filePath = path.join(__dirname, url);
             const ext = path.extname(filePath);
             let contentType = "text/html";
 
-            switch (ext) {
-                case ".css":
-                    contentType = "text/css";
+            switch (ext.toLowerCase()) {
+                case ".jpg":
+                    contentType = "image/jpeg";
                     break;
-                case ".js":
-                    contentType = "text/javascript";
+                case ".png":
+                    contentType = "image/png";
                     break;
-                default:
-                    contentType = "text/html";
-            }
-
-            if (!ext) {
-                filePath += ".html";
+                case ".svg":
+                    contentType = "image/png";
+                    break;
             }
 
             fs.readFile(filePath, (err, content) => {
                 if (err) {
-                    fs.readFile(path.join(__dirname, "public", "error.html"), (err, data) => {
-                        if (err) {
-                            res.writeHead(500);
-                            res.end("Error");
-                        } else {
-                            res.writeHead(200, {
-                                "Content-Type": "text/html",
-                            });
-                            res.end(data);
-                        }
+                    res.writeHead(200, {
+                        "Content-Type": "application/json",
                     });
+                    res.end(JSON.stringify({
+                        err,
+                    }));
                 } else {
                     res.writeHead(200, {
                         "Content-Type": contentType,
