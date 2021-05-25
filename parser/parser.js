@@ -63,7 +63,6 @@ const getParseImages = async ({category, countOfImages}) => {
   return DATA;
 }
 
-// const ALL_SAVED_IMAGE_NAMES = [];
 let AllSavedImageNames = [];
 
 const initAllSavedImageNamesArray = () => {
