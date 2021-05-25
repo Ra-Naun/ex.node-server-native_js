@@ -15,8 +15,11 @@ const start = async (params) => {
   const category =  Object.keys(categoriesUrls).find((key) => key === params?.category ) || defaultCategory;
   const countOfImages = params?.countOfImages || 0;
   const DATA = await getParseImages({category, countOfImages});
-  downloadImages(DATA.data);
-  return DATA;
+  downloadImages(DATA);
+  return {
+    length: DATA.length,
+    DATA
+  };
 }
 
 
@@ -39,16 +42,13 @@ const getParseImages = async ({category, countOfImages}) => {
   }
   Images = Images.slice(0, Math.min(countOfImages, Images.length));
 
-  const DATA ={
-    length: Images.length,
-    data: []
-  }
+  const DATA = []
 
-  for (let index = 0; index < DATA.length; index++) {
+  for (let index = 0; index < Images.length; index++) {
     const mediumPageData = await parseMediumPage(Images[index].linkOnMedium);
     const name = Images[index].name;
     const isExist = checkExist(name);
-    !isExist && DATA.data.push({
+    !isExist && DATA.push({
       previewImage: {
         src: Images[index].src,
         alt: Images[index].title,
