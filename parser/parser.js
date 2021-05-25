@@ -2,11 +2,12 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
+const shortid = require('shortid');
 const fetch = require('node-fetch');
 const jsdom = require("jsdom");
 const { JSDOM } = jsdom;
 
-const BDClient = require("./BDClient");
+const BDClient = require("./BDClient").init();
 
 
 const start = async (params) => {
@@ -15,10 +16,18 @@ const start = async (params) => {
   const category =  Object.keys(categoriesUrls).find((key) => key === params?.category ) || defaultCategory;
   const countOfImages = params?.countOfImages || 0;
   const DATA = await getParseImages({category, countOfImages});
-  downloadImages(DATA);
+  await new Promise((resolve, reject) => {
+    downloadImages(DATA, resolve);
+  });
+
+  try {
+    saveInBD(DATA);
+  } catch (error) {
+    console.log('~| saveInBD error: ', error);
+  }
   return {
     length: DATA.length,
-    DATA
+    DATA,
   };
 }
 
@@ -57,6 +66,7 @@ const getParseImages = async ({category, countOfImages}) => {
       fullSizeImage: mediumPageData.fullSizeImage,
       category,
       name,
+      hashname: `${shortid.generate()}${Date.now().toString().replace(/\s/g, '')}.${name.split('.')[1]}`,
     })
   }
 
@@ -64,7 +74,6 @@ const getParseImages = async ({category, countOfImages}) => {
 }
 
 let AllSavedImageNames = [];
-
 const initAllSavedImageNamesArray = () => {
   try {
     const dir = path.join(__dirname, PREVIEW_IMAGES_PATH);
@@ -72,7 +81,7 @@ const initAllSavedImageNamesArray = () => {
     AllSavedImageNames = files;
   } catch (error) {
     AllSavedImageNames = [];
-    console.log('~| init error: ', error);
+    error.message.includes('ENOENT: no such file or directory') || console.log('~| init error: ', error);
   }
 }
 
@@ -141,14 +150,16 @@ const getPage = async (uri) => {
   }
 }
 
-const downloadImages = (images) => {
+const downloadImages = (images, resolve) => {
   let count = images.length * 3;
   console.log('~| Download start | left: ', count);
   const afterDownloadingFile = (message) => {
     console.log('downloaded: ', message);
     if(--count > 0) console.log('~| Downloading | left: ', count);
-    else console.log('Download done!');
-
+    else {
+      console.log('Download done!');
+      resolve();
+    }
   }
 
   try {
@@ -160,13 +171,13 @@ const downloadImages = (images) => {
   fs.mkdirSync(destFullSizeImages, { recursive: true });
   images.forEach(image => {
     const urlPreviewImage = domen+'/'+image.previewImage.src;
-    const uriPreviewImage = destPreviewImages+image.name;
+    const uriPreviewImage = destPreviewImages+image.hashname;
     download(urlPreviewImage, uriPreviewImage, afterDownloadingFile);
     const urlMediumImage = domen+'/'+image.mediumImage.src;
-    const uriMediumImage = destMediumImages+image.name;
+    const uriMediumImage = destMediumImages+image.hashname;
     download(urlMediumImage, uriMediumImage, afterDownloadingFile);
     const urlFullSizeImage = domen+'/'+image.fullSizeImage.src;
-    const uriFullSizeImage = destFullSizeImages+image.name;
+    const uriFullSizeImage = destFullSizeImages+image.hashname;
     download(urlFullSizeImage, uriFullSizeImage, afterDownloadingFile);
   });
   } catch (error) {
@@ -194,7 +205,10 @@ const download = (url, dest, cb) => {
 
 
 const saveInBD = (images) => {
-
+  images.forEach((img) => {
+    console.log('~| saveInBD: ', img);
+    BDClient.add(img)
+  })
 }
 
 
