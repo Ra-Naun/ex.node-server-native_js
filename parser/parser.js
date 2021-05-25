@@ -6,18 +6,21 @@ const fetch = require('node-fetch');
 const jsdom = require("jsdom");
 const { JSDOM } = jsdom;
 
+const BDClient = require("./BDClient");
+
 
 const start = async (params) => {
-  const category = params?.category || categoriesUrls.popular;
+  initAllSavedImageNamesArray();
+  const defaultCategory = Object.keys(categoriesUrls).find((key) => categoriesUrls[key] === categoriesUrls.Abstract)
+  const category =  Object.keys(categoriesUrls).find((key) => key === params?.category ) || defaultCategory;
   const countOfImages = params?.countOfImages || 0;
   const DATA = await getParseImages({category, countOfImages});
-  // startDownloadImages(DATA.data);
+  downloadImages(DATA.data);
   return DATA;
 }
 
 
 const getParseImages = async ({category, countOfImages}) => {
-
   const IMAGES_IN_PAGE = 21;
   const purelyDivide = Math.trunc(countOfImages  / IMAGES_IN_PAGE) === countOfImages  / IMAGES_IN_PAGE? 0:1;
 
@@ -43,7 +46,9 @@ const getParseImages = async ({category, countOfImages}) => {
 
   for (let index = 0; index < DATA.length; index++) {
     const mediumPageData = await parseMediumPage(Images[index].linkOnMedium);
-    DATA.data.push({
+    const name = Images[index].name;
+    const isExist = checkExist(name);
+    !isExist && DATA.data.push({
       previewImage: {
         src: Images[index].src,
         alt: Images[index].title,
@@ -51,11 +56,29 @@ const getParseImages = async ({category, countOfImages}) => {
       mediumImage: mediumPageData.mediumImage,
       fullSizeImage: mediumPageData.fullSizeImage,
       category,
-      name: Images[index].name,
+      name,
     })
   }
 
   return DATA;
+}
+
+// const ALL_SAVED_IMAGE_NAMES = [];
+let AllSavedImageNames = [];
+
+const initAllSavedImageNamesArray = () => {
+  try {
+    const dir = path.join(__dirname, PREVIEW_IMAGES_PATH);
+    const files = fs.readdirSync(dir);
+    AllSavedImageNames = files;
+  } catch (error) {
+    AllSavedImageNames = [];
+    console.log('~| init error: ', error);
+  }
+}
+
+const checkExist = (name) => {
+  return AllSavedImageNames.includes(name);
 }
 
 const parseImagesChunk = (page) => {
@@ -102,9 +125,9 @@ const parseMediumPage = async (uri) => {
 
 const getPageWithImages = async ({category, page}) => {
   const categoryPath = categoriesUrls[category];
-  const isPA = (categoryPath === categoriesUrls.popular || categoryPath === categoriesUrls.Abstract );
-  const uri = `${categoryPath}${isPA?'&':'?'}page=${page}`;
-  console.log('~| uri: ', uri);
+  const PAF = [categoriesUrls.popular, categoriesUrls.Abstract, categoriesUrls.food]
+  const isPAF = PAF.includes(categoryPath);
+  const uri = `${categoryPath}${isPAF?'&':'?'}page=${page}`;
   return await getPage(uri);
 }
 
@@ -119,11 +142,13 @@ const getPage = async (uri) => {
   }
 }
 
-const startDownloadImages = (images) => {
+const downloadImages = (images) => {
   let count = images.length * 3;
   const afterDownloadingFile = (message) => {
-    console.log('~| downloaded: ', message);
-    console.log('~| : left', --count);
+    console.log('downloaded: ', message);
+    if(--count > 0) console.log('~| : left', count);
+    else console.log('Done!');
+
   }
 
   try {
@@ -168,6 +193,9 @@ const download = (url, dest, cb) => {
 };
 
 
+const saveInBD = (images) => {
+
+}
 
 
 
@@ -175,13 +203,15 @@ const download = (url, dest, cb) => {
 
 
 
+const DB_CONFIG = {
+  POSTGRES_PASSWORD: 'root',
+  POSTGRES_USER: 'root',
+  POSTGRES_DB: 'allconv',
+}
 
-
-
-const PREVIEW_IMAGES_PATH = '/images/previewImages/';
-const MEDIUM_IMAGES_PATH = '/images/mediumImages/';
-const FULLSIZE_IMAGES_PATH = '/images/fullSizeImages/';
-
+const PREVIEW_IMAGES_PATH = '/images/preview/';
+const MEDIUM_IMAGES_PATH = '/images/medium/';
+const FULLSIZE_IMAGES_PATH = '/images/large/';
 
 const domen = 'https://www.4freephotos.com';
 const categoriesUrls = {
@@ -199,7 +229,6 @@ const categoriesUrls = {
   Wildlife: '0decdc82b33c108532359b47ed642b50-lightbox.html',
   Cars: '96533303f0d0f66df57af92925022904-lightbox.html',
 }
-
 
 module.exports = {
   start,
