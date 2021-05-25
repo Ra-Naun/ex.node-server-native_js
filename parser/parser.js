@@ -143,10 +143,11 @@ const getPage = async (uri) => {
 
 const downloadImages = (images) => {
   let count = images.length * 3;
+  console.log('~| Download start | left: ', count);
   const afterDownloadingFile = (message) => {
     console.log('downloaded: ', message);
-    if(--count > 0) console.log('~| : left', count);
-    else console.log('Done!');
+    if(--count > 0) console.log('~| Downloading | left: ', count);
+    else console.log('Download done!');
 
   }
 
